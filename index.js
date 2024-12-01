@@ -1,6 +1,7 @@
 const { Server } = require('socket.io');
 const http = require('http');
 const { LLMChat } = require('./llm-config/chat');
+const { getTTSAudioContent } = require('./text-to-speech');
 require('./llm-config')
 
 const httpServer = http.createServer();
@@ -13,9 +14,14 @@ onboardingSocket.on('connection', async socket => {
   const llmChat = new LLMChat();
   socket.emit('welcome', await llmChat.sendGreetings());
 
+  socket.on('audio', async (data) => {
+    console.log(data);
+  })
+
   socket.on('message', async msg => {
     const llmResponse = await  llmChat.interactWithLLM(msg);
-    console.log(llmResponse)
+    const audioContent = await getTTSAudioContent(llmResponse.response);
+    socket.emit('tts', audioContent);
     socket.emit('ai', llmResponse?.response)
   });
 });

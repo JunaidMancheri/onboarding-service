@@ -16,8 +16,8 @@ async function getTTSAudioContent(text) {
     audioConfig: {
       audioEncoding: 'MP3',
       effectsProfileId: ['telephony-class-application'],
-      pitch: 4.4,
-      speakingRate: 0.50
+      pitch: 2.4,
+      speakingRate: 0.80
     },
   };
 

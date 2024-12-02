@@ -3,7 +3,11 @@ const http = require('http');
 const { LLMChat } = require('./llm-config/chat');
 const { getTTSAudioContent } = require('./text-to-speech');
 const { transcribeAudio } = require('./speech-to-text');
+require('dotenv')()
+
 require('./llm-config');
+
+
 
 const httpServer = http.createServer();
 const socketServer = new Server(httpServer, { cors: { origin: '*' } });

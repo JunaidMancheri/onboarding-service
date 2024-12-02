@@ -2,7 +2,7 @@ const textToSpeech = require('@google-cloud/text-to-speech');
 const { join } = require('path');
 
 const ttsClient = new textToSpeech.TextToSpeechClient({
-  keyFile: join(__dirname, 'giggr.json'),
+  keyFile: join(__dirname, '..','giggr-gcp.json'),
 });
 
 async function getTTSAudioContent(text) {

@@ -2,7 +2,7 @@ const speech = require('@google-cloud/speech');
 const { join } = require('path');
 
 const client = new speech.SpeechClient({
-  keyFile: join(__dirname, 'giggr.json'),
+  keyFile: join(__dirname, '..', 'giggr-gcp.json'),
 });
 
 

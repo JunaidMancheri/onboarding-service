@@ -1,7 +1,7 @@
 const { VertexAI } = require('@google-cloud/vertexai');
 const {join} = require('path');
 
-const keyFilePath = join(__dirname, 'giggr.json')
+const keyFilePath = join(__dirname, '..','giggr-gcp.json')
 const vertex_ai = new VertexAI({
   project: '335427969026',
   location: 'us-central1',

@@ -4,7 +4,6 @@ const { LLMChat } = require('./llm-config/chat');
 const { getTTSAudioContent } = require('./text-to-speech');
 const { transcribeAudio } = require('./speech-to-text');
 require('dotenv').config()
-
 require('./llm-config');
 
 
@@ -21,7 +20,13 @@ onboardingSocket.on('connection', async socket => {
   socket.emit('welcome', welcomeMessage);
 
   socket.on('audio', async audioChunk => {
-    const transcribedText = await transcribeAudio(audioChunk);
+    let transcribedText;
+    try {
+       transcribedText = await transcribeAudio(audioChunk);
+    } catch (error) {
+      console.log(error.message)
+      return console.log('Error transcribing');
+    }
     socket.emit('transcribe', transcribedText);
     await interactWithLLm(transcribedText, llmChat, socket);
   });

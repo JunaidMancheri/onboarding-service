@@ -1,4 +1,5 @@
 const nodemailer = require('nodemailer');
+require('dotenv').config()
 
 const transporter = nodemailer.createTransport({
   service: 'gmail',
@@ -8,13 +9,12 @@ const transporter = nodemailer.createTransport({
   },
 });
 
-exports.sendMail = function (toMailId, mailData) {
+function sendMail(toMailId, mailData) {
   const mailOptions = {
     from: process.env.MAIL_ID,
     to: toMailId,
     subject: mailData.subject,
     text: mailData.text,
-    html: mailData.html,
   };
 
   return new Promise((resolve, reject) => {
@@ -26,4 +26,19 @@ exports.sendMail = function (toMailId, mailData) {
       return resolve();
     });
   });
+}
+
+function generateOTP() {
+  return Math.floor(100000 + Math.random() * 900000).toString();
+}
+
+exports.sendOtpMail = async function (toMailId) {
+  const otp = generateOTP();
+  const mailData = {
+    subject: 'Email Verification',
+    text: `${otp} is your OTP. Kindly update the bot with your received otp`,
+  };
+
+  await sendMail(toMailId, mailData);
+  return otp;
 };

@@ -14,7 +14,6 @@ exports.transcribeAudio = async function (audioBuffer) {
     },
   };
   const [response] = await client.recognize(request);
-  console.log(response);
   const transcription = response.results
     .map(result => result.alternatives[0].transcript)
     .join('\n');

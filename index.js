@@ -59,30 +59,24 @@ async function interactWithLLm(msg, llmChat, socket) {
 }
 
 async function handleOnboardingSessionEnd(llmResponse, socket) {
-  if (!llmResponse.isComplete) return;
-  if (!llmResponse.isConfirmed) return;
-  if (!llmResponse.isEmailVerified) return;
-  if (!llmResponse.isUIDSaved) return;
+  if (llmResponse.signal !== 'session_end') return;
   socket.emit('events', 'session_end');
 }
 
 async function handleGenerateUID(llmResponse, socket, llmChat) {
-  if (!llmResponse.isComplete) return;
-  if (!llmResponse.isConfirmed) return;
-  if (!llmResponse.isEmailVerified) return;
-  if (!llmResponse.isUIDSaved) return;
+  if (llmResponse.signal !== 'generate_uid') return;
   const uid = generateUID(llmResponse.collectedData.firstName);
   return await signalLLM(
     `Have generated UID for the user.
     This is  their uid ${uid}. 
-    Please let them save it confirm it`,
+    Please let them save it and confirm it`,
     socket,
     llmChat
   );
 }
 
 async function handleEmailOtpVerify(llmResponse, socket, llmChat) {
-  if (llmResponse.isEmailVerified) return;
+  if (llmResponse.signal !== 'verify_otp') return;
   const email = llmResponse.collectedData.email;
   const otp = llmResponse.emailOtp;
   if (!email) return;
@@ -103,28 +97,12 @@ async function handleEmailOtpVerify(llmResponse, socket, llmChat) {
 }
 
 async function handleEmailVerify(llmResponse, socket, llmChat) {
-  const email = llmResponse.collectedData.email;
-  if (!email) return;
-  if (llmResponse.isEmailVerified) return;
-  if (llmResponse.emailVerificationSent >= 3) return;
-  if (
-    llmResponse.sentEmailVerification &&
-    !llmResponse.userRequestedForEmailVerification
-  )
-  return;
+  if (llmResponse.signal !== 'send_verification_mail') return;
+  const email = llmResponse.collectedData.email
   const otp = await sendOtpMail(email);
   otpCache[email] = otp;
-
-  if (llmResponse.userRequestedForEmailVerification) {
-    return await signalLLM(
-      'Have resend a verification mail to the user. Please notify them and update the variable sentEmailVerification to true and userRequestedForEmailVerification to false again',
-      socket,
-      llmChat
-    );
-  }
-
   await signalLLM(
-    'Have sent a verification mail to the user. Please notify them and update the variable sentEmailVerification to true',
+    'Have sent a verification mail to the user. Please notify them',
     socket,
     llmChat
   );

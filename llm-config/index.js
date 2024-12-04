@@ -1,14 +1,13 @@
 const { VertexAI } = require('@google-cloud/vertexai');
-const {join} = require('path');
+const { join } = require('path');
 
-const keyFilePath = join(__dirname, '..','giggr-gcp.json')
+const keyFilePath = join(__dirname, '..', 'giggr-gcp.json');
 const vertex_ai = new VertexAI({
   project: '335427969026',
   location: 'us-central1',
   googleAuthOptions: { keyFile: keyFilePath },
 });
-const model =
-  'projects/335427969026/locations/us-central1/endpoints/4787054824522776576';
+const model = 'gemini-1.5-pro-002';
 
 const generativeModel = vertex_ai.preview.getGenerativeModel({
   model: model,

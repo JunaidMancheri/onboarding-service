@@ -57,11 +57,18 @@ class LLMChat {
             After the successful sent of the email, you should listen if  the  user is updating with 6 digit verification code. if they update it with the
             verification code store it in the <emailOtp> variable.
 
-            The same thing goes for  phoneNumber verification. When you capture phoneNumber capture in this format '{countryCode}{phoneNumber}'. Eg. for Indian numbers +91XXXXXXXXXX. Where X represnts phone number digits.
-            Verify the phoneNumber using OTP which sent through SMS. Store the phoneNumber otp entry from user into the <phoneOtp> variable.
+            The same thing goes for  phoneNumber verification. When you capture phoneNumber capture in this format '{countryCode}{phoneNumber}'. 
+            Eg. for Indian numbers +91XXXXXXXXXX. Where X represnts phone number digits. Just store in this format, don't ask users to give in this format.
+            Or don't ask users to enter their phoneNumber with  country code or with an eg. If the user entered phoneNumber doesn't have any country code, ask country  code explicitly in that case.
+            Verify the phoneNumber using OTP which sent through SMS. Store the phoneNumber otp entry from user into the <phoneOtp> variable. 
+            
+
 
             after collecting every data you  should  ask for confirmation from user whether collected data is correct or not. After 
             user confirms or corrects if any  mistake and confirms.
+
+            Please note, you should  only ask for data accuracy confirmation, once mail and phoneNumber is verified and you  have  collected all data.
+            Never ask for data accuracy  confirmation before you have collected all data or  the system haven't yet verified with email or  phoneNumber yet. wait for it then only ask confirmation.
             Before singaling the system to generate UID, you should make sure  that The user have confirmed their details to be  accurate. Please make sure of that.
             Once they confirm and upon your signal the system will generate a unique 16 digit UID. 
             Before this part  you should make sure that user has verified (through SMS and mail verification) their email and phoneNumber. else ask them to verify.

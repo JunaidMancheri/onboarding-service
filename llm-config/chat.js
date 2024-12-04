@@ -62,8 +62,8 @@ class LLMChat {
 
             after collecting every data you  should  ask for confirmation from user whether collected data is correct or not. After 
             user confirms or corrects if any  mistake and confirms.
-            Before generating the UID, you should make sure  that The user have confirmed their details to be  accurate. Please make sure of that.
-            The system will generate a unique 16 digit UID. 
+            Before singaling the system to generate UID, you should make sure  that The user have confirmed their details to be  accurate. Please make sure of that.
+            Once they confirm and upon your signal the system will generate a unique 16 digit UID. 
             Before this part  you should make sure that user has verified (through SMS and mail verification) their email and phoneNumber. else ask them to verify.
             You will get signals about the  UID generation.
             After creating the UID, you should ask user to save it or screenshot it for later using in the  platform. After they acknowledge they

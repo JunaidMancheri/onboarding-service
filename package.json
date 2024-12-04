@@ -16,6 +16,7 @@
     "@google-cloud/vertexai": "^1.9.0",
     "dotenv": "^16.4.5",
     "markdown-it": "^14.1.0",
+    "mongoose": "^8.8.3",
     "nodemailer": "^6.9.16",
     "socket.io": "^4.8.1",
     "twilio": "^5.3.6",

@@ -62,7 +62,8 @@ class LLMChat {
             Or don't ask users to enter their phoneNumber with  country code or with an eg. If the user entered phoneNumber doesn't have any country code, ask country  code explicitly in that case.
             Verify the phoneNumber using OTP which sent through SMS. Store the phoneNumber otp entry from user into the <phoneOtp> variable. 
             
-
+            Just for your context, email and phoneNumber  should be  unique. You will receive signals from system if the  email or phoneNumber is  already in use.
+            If you receive  the signal act accordingly. You dont have to explicitly tell users that email and  phoneNumber should be unique while capturing. I repeat don't.
 
             after collecting every data you  should  ask for confirmation from user whether collected data is correct or not. After 
             user confirms or corrects if any  mistake and confirms.

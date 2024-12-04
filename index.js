@@ -5,11 +5,14 @@ const { getTTSAudioContent } = require('./text-to-speech');
 const { transcribeAudio } = require('./speech-to-text');
 const { sendOtpMail } = require('./sendEmail');
 const { sendOtpPhone } = require('./sendSMS');
+const { default: mongoose } = require('mongoose');
+const { User } = require('./models/User');
 require('dotenv').config();
 require('./llm-config');
 
 const mailOtpCache = {};
 const phoneOtpCache = {};
+const uidCache = {};
 
 const httpServer = http.createServer();
 const socketServer = new Server(httpServer, { cors: { origin: '*' } });
@@ -75,6 +78,8 @@ async function interactWithLLm(msg, llmChat, socket) {
 async function handleOnboardingSessionEnd(llmResponse, socket) {
   if (llmResponse.signal !== 'session_end') return;
   socket.emit('events', 'session_end');
+  const email = llmResponse.collectedData.email;
+  await User.updateOne({ email }, { uid: uidCache[email] });
 }
 
 async function handlePhoneOtpVerify(llmResponse, socket, llmChat) {
@@ -101,6 +106,15 @@ async function handlePhoneOtpVerify(llmResponse, socket, llmChat) {
 async function handlePhoneVerify(llmResponse, socket, llmChat) {
   if (llmResponse.signal !== 'send_verification_phone') return;
   const phoneNumber = llmResponse.collectedData.phoneNumber;
+  const userDoc = await User.findOne({ phoneNumber });
+  if (userDoc) {
+    return signalLLM(
+      `This phone number is already in use. Please notify the user we can't continue
+      with a already in use phoneNumber. Ask if they have alternative options else convey  we can't proceed with this phoneNumber`,
+      socket,
+      llmChat
+    );
+  }
   const otp = await sendOtpPhone(phoneNumber);
   phoneOtpCache[phoneNumber] = otp;
   await signalLLM(
@@ -110,9 +124,21 @@ async function handlePhoneVerify(llmResponse, socket, llmChat) {
   );
 }
 
+async function generateUniqueUID(firstName) {
+  let uid;
+  let user;
+  do {
+    uid = generateUID(firstName);
+    user = await User.findOne({ uid });
+  } while (user);
+  return uid;
+}
+
 async function handleGenerateUID(llmResponse, socket, llmChat) {
   if (llmResponse.signal !== 'generate_uid') return;
-  const uid = generateUID(llmResponse.collectedData.firstName);
+  await User.create(llmResponse.collectedData);
+  const uid = await generateUniqueUID(llmResponse.collectedData.firstName);
+  uidCache[llmResponse.collectedData.email] = uid;
   return await signalLLM(
     `Have generated UID for the user.
     This is  their uid ${uid}. 
@@ -147,6 +173,15 @@ async function handleEmailOtpVerify(llmResponse, socket, llmChat) {
 async function handleEmailVerify(llmResponse, socket, llmChat) {
   if (llmResponse.signal !== 'send_verification_mail') return;
   const email = llmResponse.collectedData.email;
+
+  const userDoc = await User.findOne({ email });
+  if (userDoc) {
+    return signalLLM(
+      'The email is already in use. Please notify the user this. Ask them if they have any alternative options else convey them we cant proceed with a email that is  already in use',
+      socket,
+      llmChat
+    );
+  }
   const otp = await sendOtpMail(email);
   mailOtpCache[email] = otp;
   await signalLLM(
@@ -182,4 +217,10 @@ function generateUID(name) {
   return initials + randomPart;
 }
 
-httpServer.listen(8000, () => console.log('Server listening on port 8000'));
+mongoose
+  .connect(process.env.MONGODB_URL)
+  .then(() => {
+    console.log('Connected to MongoDB');
+    httpServer.listen(8000, () => console.log('Server listening on port 8000'));
+  })
+  .catch(err => console.log(err));

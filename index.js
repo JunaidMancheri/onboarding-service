@@ -4,10 +4,12 @@ const { LLMChat } = require('./llm-config/chat');
 const { getTTSAudioContent } = require('./text-to-speech');
 const { transcribeAudio } = require('./speech-to-text');
 const { sendOtpMail } = require('./sendEmail');
+const { sendOtpPhone } = require('./sendSMS');
 require('dotenv').config();
 require('./llm-config');
 
-const otpCache = {};
+const mailOtpCache = {};
+const phoneOtpCache = {};
 
 const httpServer = http.createServer();
 const socketServer = new Server(httpServer, { cors: { origin: '*' } });
@@ -26,7 +28,18 @@ onboardingSocket.on('connection', async socket => {
 
   socket.on('audio', async audioChunk => {
     try {
-      let transcribedText = await transcribeAudio(audioChunk);
+      let transcribedText;
+      try {
+        transcribedText = await transcribeAudio(audioChunk);
+        if (
+          transcribedText == '' ||
+          transcribedText == null ||
+          !transcribedText
+        )
+          throw new Error('Error transcribing');
+      } catch (error) {
+        return socket.emit('events', 'error_transcribing');
+      }
       socket.emit('transcribe', transcribedText);
       await interactWithLLm(transcribedText, llmChat, socket);
     } catch (error) {
@@ -55,12 +68,46 @@ async function interactWithLLm(msg, llmChat, socket) {
   await handleEmailVerify(llmResponse, socket, llmChat);
   await handleGenerateUID(llmResponse, socket, llmChat);
   await handleOnboardingSessionEnd(llmResponse, socket);
-
+  await handlePhoneVerify(llmResponse, socket, llmChat);
+  await handlePhoneOtpVerify(llmResponse, socket, llmChat);
 }
 
 async function handleOnboardingSessionEnd(llmResponse, socket) {
   if (llmResponse.signal !== 'session_end') return;
   socket.emit('events', 'session_end');
+}
+
+async function handlePhoneOtpVerify(llmResponse, socket, llmChat) {
+  if (llmResponse.signal !== 'verify_otp_phone') return;
+  const phoneNumber = llmResponse.collectedData.phoneNumber;
+  const otp = llmResponse.phoneOtp;
+  if (!phoneNumber) return;
+  if (!otp) return;
+  if (phoneOtpCache[phoneNumber] != otp) {
+    return await signalLLM(
+      'The otp for phone verification provided by user is wrong. Please let them know and kindly ask them to recheck. Also make the variable <phoneOtp> null again ',
+      socket,
+      llmChat
+    );
+  }
+
+  return await signalLLM(
+    `The otp for phone verification is correct. mark the users phoneNumber is verified and kindly let them know they have verified their phoneNumber.`,
+    socket,
+    llmChat
+  );
+}
+
+async function handlePhoneVerify(llmResponse, socket, llmChat) {
+  if (llmResponse.signal !== 'send_verification_phone') return;
+  const phoneNumber = llmResponse.collectedData.phoneNumber;
+  const otp = await sendOtpPhone(phoneNumber);
+  phoneOtpCache[phoneNumber] = otp;
+  await signalLLM(
+    "Have sent a verification sms to the user's phone number. Please notify them",
+    socket,
+    llmChat
+  );
 }
 
 async function handleGenerateUID(llmResponse, socket, llmChat) {
@@ -76,21 +123,22 @@ async function handleGenerateUID(llmResponse, socket, llmChat) {
 }
 
 async function handleEmailOtpVerify(llmResponse, socket, llmChat) {
-  if (llmResponse.signal !== 'verify_otp') return;
+  if (llmResponse.signal !== 'verify_otp_mail') return;
   const email = llmResponse.collectedData.email;
   const otp = llmResponse.emailOtp;
   if (!email) return;
   if (!otp) return;
-  if (otpCache[email] != otp) {
+  if (mailOtpCache[email] != otp) {
     return await signalLLM(
-      'The otp provided by user is wrong. Please let them know and kindly ask them to recheck. Also make the variable <emailOtp> null again ',
+      'The otp provided by user for mail verification is wrong. Please let them know and kindly ask them to recheck. Also make the variable <emailOtp> null again ',
       socket,
       llmChat
     );
   }
 
   return await signalLLM(
-    'The otp is correct. mark the users email is verified and kindly let them know they have verified their email',
+    `The otp for mail verification is correct. mark the users email is verified and kindly let them know they have verified their email.
+`,
     socket,
     llmChat
   );
@@ -98,9 +146,9 @@ async function handleEmailOtpVerify(llmResponse, socket, llmChat) {
 
 async function handleEmailVerify(llmResponse, socket, llmChat) {
   if (llmResponse.signal !== 'send_verification_mail') return;
-  const email = llmResponse.collectedData.email
+  const email = llmResponse.collectedData.email;
   const otp = await sendOtpMail(email);
-  otpCache[email] = otp;
+  mailOtpCache[email] = otp;
   await signalLLM(
     'Have sent a verification mail to the user. Please notify them',
     socket,

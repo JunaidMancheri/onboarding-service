@@ -1,4 +1,5 @@
 const nodemailer = require('nodemailer');
+const { generateOTP } = require('./utils/generateOtp');
 require('dotenv').config()
 
 const transporter = nodemailer.createTransport({
@@ -26,10 +27,6 @@ function sendMail(toMailId, mailData) {
       return resolve();
     });
   });
-}
-
-function generateOTP() {
-  return Math.floor(100000 + Math.random() * 900000).toString();
 }
 
 exports.sendOtpMail = async function (toMailId) {

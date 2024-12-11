@@ -25,6 +25,7 @@ const userSchema = new mongoose.Schema({
   },
   organization: String,
   role: String,
+  machineIds: [String],
 });
 
 

@@ -7,6 +7,7 @@ const { sendOtpMail } = require('./sendEmail');
 const { sendOtpPhone } = require('./sendSMS');
 const { default: mongoose } = require('mongoose');
 const { User } = require('./models/User');
+const { uploadUsersImage } = require('./storage');
 require('dotenv').config();
 require('./llm-config');
 
@@ -51,6 +52,18 @@ onboardingSocket.on('connection', async socket => {
     }
   });
 
+  socket.on('image', async imageData => {
+    try {
+      // sotre it;
+      // public acces disabled  by  org;
+     const publicUrl = await uploadUsersImage(imageData);
+     console.log(publicUrl);
+      // extract embeddings;
+      console.log(imageData);
+    } catch (error) {
+      console.log('ERror  in Image processing: ', error.message);
+    }
+  })
   socket.on('message', async msg => {
     try {
       await interactWithLLm(msg, llmChat, socket);
@@ -66,13 +79,20 @@ async function interactWithLLm(msg, llmChat, socket) {
   const audioContent = await getTTSAudioContent(llmResponse.response);
   socket.emit('tts', audioContent);
   socket.emit('ai', llmResponse?.response);
-
+  
+  await handleCapturePicture(llmResponse, socket)
   await handleEmailOtpVerify(llmResponse, socket, llmChat);
   await handleEmailVerify(llmResponse, socket, llmChat);
   await handleGenerateUID(llmResponse, socket, llmChat);
   await handleOnboardingSessionEnd(llmResponse, socket);
   await handlePhoneVerify(llmResponse, socket, llmChat);
   await handlePhoneOtpVerify(llmResponse, socket, llmChat);
+}
+
+
+async  function  handleCapturePicture(llmResponse, socket) {
+ if (llmResponse.signal !== 'capture_picture') return;
+ socket.emit('events', 'capture_picture');
 }
 
 async function handleOnboardingSessionEnd(llmResponse, socket) {
@@ -136,7 +156,10 @@ async function generateUniqueUID(firstName) {
 
 async function handleGenerateUID(llmResponse, socket, llmChat) {
   if (llmResponse.signal !== 'generate_uid') return;
-  await User.create(llmResponse.collectedData);
+  await User.create({
+    ...llmResponse.collectedData,
+    machineIds: [socket.handshake?.query?.machineId],
+  });
   const uid = await generateUniqueUID(llmResponse.collectedData.firstName);
   uidCache[llmResponse.collectedData.email] = uid;
   return await signalLLM(

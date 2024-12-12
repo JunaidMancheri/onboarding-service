@@ -15,12 +15,15 @@ require('./llm-config');
 const mailOtpCache = {};
 const phoneOtpCache = {};
 const uidCache = {};
+const onboardingUserCache = {};
 
 const httpServer = http.createServer();
 const socketServer = new Server(httpServer, { cors: { origin: '*' } });
 
 const onboardingSocket = socketServer.of('/onboarding');
 onboardingSocket.on('connection', async socket => {
+  const machineId = socket.handshake?.query?.machineId;
+  onboardingUserCache[machineId] = {};
   const llmChat = new LLMChat();
   try {
     const welcomeMessage = await llmChat.signalLLM('start onboarding');
@@ -55,17 +58,25 @@ onboardingSocket.on('connection', async socket => {
 
   socket.on('image', async imageData => {
     try {
+      const machineId = socket.handshake?.query?.machineId;
       // public acces disabled  by  org;
-     const publicUrl = await uploadUsersImage(imageData);
-     console.log(publicUrl);
-     const  faceData = await extractEmbeddings(imageData);
-     const landmarks = extractLandmarks(faceData);
-     console.log(landmarks);     
-      
+      const publicUrl = await uploadUsersImage(imageData);
+      const faceData = await extractEmbeddings(imageData);
+      const landmarks = extractLandmarks(faceData);
+      onboardingUserCache[machineId].userImageData = {
+        imageUrl: publicUrl,
+        faceLandmarks: landmarks,
+      };
+
+      await signalLLM(
+        'user has uploaded the photo and the system has procecced it, you may continue collecting the rest of the data',
+        socket,
+        llmChat
+      );
     } catch (error) {
       console.log('ERror  in Image processing: ', error.message);
     }
-  })
+  });
   socket.on('message', async msg => {
     try {
       await interactWithLLm(msg, llmChat, socket);
@@ -76,13 +87,15 @@ onboardingSocket.on('connection', async socket => {
 });
 
 async function interactWithLLm(msg, llmChat, socket) {
+  const machineId = socket.handshake?.query?.machineId;
   const llmResponse = await llmChat.interactWithLLM(msg);
   console.log(llmResponse);
+  onboardingUserCache[machineId].collectedUserData = llmResponse.collectedData;
   const audioContent = await getTTSAudioContent(llmResponse.response);
   socket.emit('tts', audioContent);
   socket.emit('ai', llmResponse?.response);
-  
-  await handleCapturePicture(llmResponse, socket)
+
+  await handleCapturePicture(llmResponse, socket);
   await handleEmailOtpVerify(llmResponse, socket, llmChat);
   await handleEmailVerify(llmResponse, socket, llmChat);
   await handleGenerateUID(llmResponse, socket, llmChat);
@@ -91,10 +104,9 @@ async function interactWithLLm(msg, llmChat, socket) {
   await handlePhoneOtpVerify(llmResponse, socket, llmChat);
 }
 
-
-async  function  handleCapturePicture(llmResponse, socket) {
- if (llmResponse.signal !== 'capture_picture') return;
- socket.emit('events', 'capture_picture');
+async function handleCapturePicture(llmResponse, socket) {
+  if (llmResponse.signal !== 'capture_picture') return;
+  socket.emit('events', 'capture_picture');
 }
 
 async function handleOnboardingSessionEnd(llmResponse, socket) {
@@ -158,9 +170,12 @@ async function generateUniqueUID(firstName) {
 
 async function handleGenerateUID(llmResponse, socket, llmChat) {
   if (llmResponse.signal !== 'generate_uid') return;
+  const machineId = socket.handshake?.query?.machineId;
   await User.create({
     ...llmResponse.collectedData,
-    machineIds: [socket.handshake?.query?.machineId],
+    machineIds: [machineId],
+    faceLandmarks: onboardingUserCache[machineId].userImageData.faceLandmarks,
+    imageUrl: onboardingUserCache[machineId].userImageData.imageUrl,
   });
   const uid = await generateUniqueUID(llmResponse.collectedData.firstName);
   uidCache[llmResponse.collectedData.email] = uid;

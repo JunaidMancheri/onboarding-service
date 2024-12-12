@@ -8,6 +8,7 @@ const { sendOtpPhone } = require('./sendSMS');
 const { default: mongoose } = require('mongoose');
 const { User } = require('./models/User');
 const { uploadUsersImage } = require('./storage');
+const { extractEmbeddings, extractLandmarks } = require('./vision');
 require('dotenv').config();
 require('./llm-config');
 
@@ -54,12 +55,13 @@ onboardingSocket.on('connection', async socket => {
 
   socket.on('image', async imageData => {
     try {
-      // sotre it;
       // public acces disabled  by  org;
      const publicUrl = await uploadUsersImage(imageData);
      console.log(publicUrl);
-      // extract embeddings;
-      console.log(imageData);
+     const  faceData = await extractEmbeddings(imageData);
+     const landmarks = extractLandmarks(faceData);
+     console.log(landmarks);     
+      
     } catch (error) {
       console.log('ERror  in Image processing: ', error.message);
     }

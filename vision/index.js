@@ -20,7 +20,6 @@ exports.extractEmbeddings = async base64Url => {
   }
 
   const faces = result.faceAnnotations;
-  console.log('Detected faces:', faces);
 
   return faces[0];
 };

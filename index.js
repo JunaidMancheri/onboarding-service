@@ -8,7 +8,8 @@ const { sendOtpPhone } = require('./sendSMS');
 const { default: mongoose } = require('mongoose');
 const { User } = require('./models/User');
 const { uploadUsersImage } = require('./storage');
-const { extractEmbeddings, extractLandmarks } = require('./vision');
+const { default: axios } = require('axios');
+const { extractFaceEmbeddings, authenticateUserImage } = require('./Auth');
 require('dotenv').config();
 require('./llm-config');
 
@@ -16,9 +17,37 @@ const mailOtpCache = {};
 const phoneOtpCache = {};
 const uidCache = {};
 const onboardingUserCache = {};
+const authCache = {};
 
 const httpServer = http.createServer();
 const socketServer = new Server(httpServer, { cors: { origin: '*' } });
+
+const authenticationSocket = socketServer.of('/auth');
+
+authenticationSocket.on('connection', async socket => {
+  socket.on('authenticate', async imageData => {
+    const email = 'junaidofficialnow@gmail.com';
+    try {
+      if (authCache[email]) return;
+      authCache[email] = true;
+      const me = await User.findOne({ email: 'junaidofficialnow@gmail.com' });
+      const isAuthenticated = await authenticateUserImage(
+        imageData,
+        me.embeddings
+      );
+      if (isAuthenticated) {
+        socket.emit('events', 'success');
+      } else {
+        socket.emit('events', 'failed');
+      }
+      authCache[email] = false;
+    } catch (error) {
+      socket.emit('events', 'error');
+      authCache[email] = false;
+      console.log(error.message);
+    }
+  });
+});
 
 const onboardingSocket = socketServer.of('/onboarding');
 onboardingSocket.on('connection', async socket => {
@@ -61,11 +90,10 @@ onboardingSocket.on('connection', async socket => {
       const machineId = socket.handshake?.query?.machineId;
       // public acces disabled  by  org;
       const publicUrl = await uploadUsersImage(imageData);
-      const faceData = await extractEmbeddings(imageData);
-      const landmarks = extractLandmarks(faceData);
+      const embeddings = await extractFaceEmbeddings(imageData);
       onboardingUserCache[machineId].userImageData = {
         imageUrl: publicUrl,
-        faceLandmarks: landmarks,
+        embeddings,
       };
 
       await signalLLM(
@@ -150,6 +178,7 @@ async function handlePhoneVerify(llmResponse, socket, llmChat) {
     );
   }
   const otp = await sendOtpPhone(phoneNumber);
+  console.log(otp);
   phoneOtpCache[phoneNumber] = otp;
   await signalLLM(
     "Have sent a verification sms to the user's phone number. Please notify them",
@@ -174,7 +203,7 @@ async function handleGenerateUID(llmResponse, socket, llmChat) {
   await User.create({
     ...llmResponse.collectedData,
     machineIds: [machineId],
-    faceLandmarks: onboardingUserCache[machineId].userImageData.faceLandmarks,
+    embeddings: onboardingUserCache[machineId].userImageData.embeddings,
     imageUrl: onboardingUserCache[machineId].userImageData.imageUrl,
   });
   const uid = await generateUniqueUID(llmResponse.collectedData.firstName);
@@ -223,6 +252,7 @@ async function handleEmailVerify(llmResponse, socket, llmChat) {
     );
   }
   const otp = await sendOtpMail(email);
+  console.log(otp);
   mailOtpCache[email] = otp;
   await signalLLM(
     'Have sent a verification mail to the user. Please notify them',

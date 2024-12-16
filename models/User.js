@@ -27,7 +27,7 @@ const userSchema = new mongoose.Schema({
   role: String,
   machineIds: [String],
   imageUrl: String,
-  faceLandmarks: [{type: mongoose.Schema.Types.Mixed}]
+  embeddings: [{type: mongoose.Schema.Types.Mixed}]
 });
 
 

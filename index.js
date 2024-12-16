@@ -1,5 +1,7 @@
 const { Server } = require('socket.io');
 const http = require('http');
+const cors = require('cors');
+const express = require('express');
 const { LLMChat } = require('./llm-config/chat');
 const { getTTSAudioContent } = require('./text-to-speech');
 const { transcribeAudio } = require('./speech-to-text');
@@ -8,8 +10,8 @@ const { sendOtpPhone } = require('./sendSMS');
 const { default: mongoose } = require('mongoose');
 const { User } = require('./models/User');
 const { uploadUsersImage } = require('./storage');
-const { default: axios } = require('axios');
 const { extractFaceEmbeddings, authenticateUserImage } = require('./Auth');
+const router = require('./routes');
 require('dotenv').config();
 require('./llm-config');
 
@@ -19,24 +21,34 @@ const uidCache = {};
 const onboardingUserCache = {};
 const authCache = {};
 
-const httpServer = http.createServer();
+const app = express();
+const httpServer = http.createServer(app);
 const socketServer = new Server(httpServer, { cors: { origin: '*' } });
 
 const authenticationSocket = socketServer.of('/auth');
 
+app.use(cors({ origin: '*' }));
+app.use(express.json({limit: '10mb'}))
+app.use(express.urlencoded());
+app.use('/', router);
+
 authenticationSocket.on('connection', async socket => {
-  socket.on('authenticate', async imageData => {
-    const email = 'junaidofficialnow@gmail.com';
+  socket.on('authenticate', async data => {
+    const email = data.email;
     try {
       if (authCache[email]) return;
       authCache[email] = true;
-      const me = await User.findOne({ email: 'junaidofficialnow@gmail.com' });
+      const user = await User.findOne({ email });
       const isAuthenticated = await authenticateUserImage(
-        imageData,
-        me.embeddings
+        data.image,
+        user.embeddings
       );
       if (isAuthenticated) {
         socket.emit('events', 'success');
+        await User.findOneAndUpdate(
+          { email },
+          { $addToSet: { machineIds: data.machineId } }
+        );
       } else {
         socket.emit('events', 'failed');
       }

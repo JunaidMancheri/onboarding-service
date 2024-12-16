@@ -7,30 +7,26 @@ const client = new ImageAnnotatorClient({
   projectId: '335427969026',
 });
 
-exports.extractEmbeddings = async base64Url => {
+exports.extractAdhaarNumber = async base64Url => {
   const base64String = base64Url.split(',')[1];
-  const [result] = await client.annotateImage({
+  const [result] = await client.textDetection({
     image: { content: base64String },
-    features: [{ type: 'FACE_DETECTION' }],
   });
 
-  if (!result.faceAnnotations || result.faceAnnotations.length === 0) {
-    console.log('No faces detected.');
-    return null;
+  const detections = result.textAnnotations;
+  
+  if (detections.length > 0) {
+    const text = detections[0].description;
+
+    const aadhaarRegex = /\d{4}\s\d{4}\s\d{4}/; 
+    const match = text.match(aadhaarRegex);
+    
+    if (match) {
+      return match[0].replace(/\s/g, '');
+    } else {
+      return null;
+    }
+  } else {
+     return null;
   }
-
-  const faces = result.faceAnnotations;
-
-  return faces[0];
-};
-
-exports.extractLandmarks = function (face) {
-  return face.landmarks.map(landmark => ({
-    type: landmark.type,
-    position: {
-      x: landmark.position.x,
-      y: landmark.position.y,
-      z: landmark.position.z,
-    },
-  }));
 };

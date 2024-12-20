@@ -28,7 +28,7 @@ const socketServer = new Server(httpServer, { cors: { origin: '*' } });
 const authenticationSocket = socketServer.of('/auth');
 
 app.use(cors({ origin: '*' }));
-app.use(express.json({limit: '10mb'}))
+app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded());
 app.use('/', router);
 
@@ -64,10 +64,14 @@ authenticationSocket.on('connection', async socket => {
 const onboardingSocket = socketServer.of('/onboarding');
 onboardingSocket.on('connection', async socket => {
   const machineId = socket.handshake?.query?.machineId;
-  onboardingUserCache[machineId] = {};
   const llmChat = new LLMChat();
   try {
-    const welcomeMessage = await llmChat.signalLLM('start onboarding');
+    let locationData = socket.handshake?.query?.locationData;
+    if (locationData) locationData = JSON.parse(locationData)
+    onboardingUserCache[machineId] = { locationData };
+    const welcomeMessage = await llmChat.signalLLM(
+      `start onboarding, and this is the location data of the user ${locationData?.fullAddress}`
+    );
     const audioContent = await getTTSAudioContent(welcomeMessage.response);
     socket.emit('tts', audioContent);
     socket.emit('welcome', welcomeMessage.response);
@@ -212,11 +216,19 @@ async function generateUniqueUID(firstName) {
 async function handleGenerateUID(llmResponse, socket, llmChat) {
   if (llmResponse.signal !== 'generate_uid') return;
   const machineId = socket.handshake?.query?.machineId;
+  const { locationLabel, ...rest } = llmResponse.collectedData;
   await User.create({
-    ...llmResponse.collectedData,
+    ...rest,
     machineIds: [machineId],
     embeddings: onboardingUserCache[machineId].userImageData.embeddings,
     imageUrl: onboardingUserCache[machineId].userImageData.imageUrl,
+    locations: [
+      {
+        label: locationLabel,
+        current: true,
+        ...onboardingUserCache[machineId].locationData,
+      },
+    ],
   });
   const uid = await generateUniqueUID(llmResponse.collectedData.firstName);
   uidCache[llmResponse.collectedData.email] = uid;

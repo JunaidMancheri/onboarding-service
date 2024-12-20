@@ -21,14 +21,14 @@ const userSchema = new mongoose.Schema({
   },
   uid: {
     type: String,
-    unique: true
+    unique: true,
   },
   organization: String,
   role: String,
   machineIds: [String],
   imageUrl: String,
-  embeddings: [{type: mongoose.Schema.Types.Mixed}]
+  embeddings: [{ type: mongoose.Schema.Types.Mixed }],
+  locations: [{ type: mongoose.Schema.Types.Mixed }],
 });
-
 
 exports.User = model('users', userSchema);

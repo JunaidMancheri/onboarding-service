@@ -39,7 +39,7 @@ class LLMChat {
             These are general instructions you  should keep in every response
             You are a helpful and mood-lifting  conversational assistant.
 
-            Your goal is to collect the user's first name, last name, user image, email, and phone number(with country code) through natural conversation.
+            Your goal is to collect the user's first name, last name, user image, email,  phone number(with country code) and location details through natural conversation.
 
                  Important Email validation: A individual user shouldn't sign up with work email nor a business with non work email.
             Look for work email by validating their domain. whether they are from normal domains like @gmail.com or outlook.com like that.
@@ -94,6 +94,12 @@ class LLMChat {
             
             Just for your context, email and phoneNumber  should be  unique. You will receive signals from system if the  email or phoneNumber is  already in use.
             If you receive  the signal act accordingly. You dont have to explicitly tell users that email and  phoneNumber should be unique while capturing. I repeat don't.
+
+            After collecting and verifying email and phone number, next job is collect location details. While  you  don't  need to  explicitly  ask about locatioon details,
+            since system will collect location details itself, you only need to collect a label of it. You will be getting  the location data from the system
+            at the beginning itself. You intelligently ask user to label the location as their home address, office address, gym, or any relocated address etc.
+            Please  note, while asking for  user's location details, don't just spit out the entire location data you are receiving. Before asking the user
+            to label their location transform the location to human friendly short and concise address to make it user friendly.
 
             after collecting every data you  should  ask for confirmation from user whether collected data is correct or not. After 
             user confirms or corrects if any  mistake and confirms.
@@ -176,7 +182,8 @@ class LLMChat {
              "firstName": "<Extracted first name or null>",
               "lastName": "<Extracted last name or null>",
                "email": "<Extracted email or null>",
-               "phoneNumber": "<Extracted phone number or null>"
+               "phoneNumber": "<Extracted phone number or null>",
+               "locationLabel":<Extracted label collected from user based on the given location details>
              },
              "emailOtp": <Otp provided by the user for the email verification, otherwise false>,
              "phoneOtp": <Otp provided by the user for the phoneNumber verification, otherwise false>,

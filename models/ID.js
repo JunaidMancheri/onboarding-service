@@ -3,7 +3,8 @@ const { default: mongoose, model } = require("mongoose");
 const IDSchema = new mongoose.Schema({
   type: String,
   id: String,
-  uid: String
+  uid: String,
+  fileName: String
 })
 
 

@@ -1,8 +1,13 @@
 const { User } = require('../models/User');
 
 const { Router } = require('express');
-const { extractAdhaarNumber } = require('../vision');
-const ID = require('../models/ID.');
+const {
+  extractAdhaarNumber,
+  extractPassportNumber,
+  extractPANNumber,
+} = require('../vision');
+const ID = require('../models/ID');
+const { uploadID, getIDUrl } = require('../storage');
 
 const router = Router();
 
@@ -23,25 +28,56 @@ router.post('/verify-id', async (req, res, next) => {
       const adhaarNumber = await extractAdhaarNumber(image);
       if (!adhaarNumber)
         return res.status(400).json({ msg: 'Adhaar Not Verified' });
-      await ID.create({ type: 'adhaar', uid, id: adhaarNumber });
-      return res.status(200).json({ msg: 'Adhaar Added Successfully' });
+      const [url, fileName] = await uploadID(image);
+      await ID.create({ type: 'adhaar', uid, id: adhaarNumber, fileName });
+      return res
+        .status(200)
+        .json({ msg: 'Adhaar Added Successfully', url, id: adhaarNumber });
     }
-    return res.end();
+
+    if (type == 'passport') {
+      const passportID = await extractPassportNumber(image);
+      if (!passportID)
+        return res.status(400).json({ msg: 'Passport Not verified' });
+      const [url, fileName] = await uploadID(image);
+      await ID.create({ type: 'passport', uid, id: passportID, fileName });
+      return res.json({
+        msg: 'Passport Added Successfully',
+        url,
+        id: passportID,
+      });
+    }
+
+    if (type == 'pan') {
+      const panID = await extractPANNumber(image);
+      if (!panID) return res.status(400).json({ msg: 'PAN Not verified' });
+      const [url, fileName] = await uploadID(image);
+      await ID.create({ type: 'pan', uid, id: panID, fileName });
+      return res.json({ msg: 'PAN Added Successfully', url, id: panID });
+    }
+    return res.sendStatus(200);
   } catch (error) {
-    console.log(error.message);
-    return res.sendStatus(500);
+    console.log(error);
+    return res.status(500).json({ msg: error.message });
   }
 });
 
-
-router.get('/ids/:uid', async (req, res,next)=> {
+router.get('/ids/:uid', async (req, res, next) => {
   try {
-    const  uid = req.params.uid;
-     const ids = await ID.find({uid});
-     return res.json(ids);
+    const uid = req.params.uid;
+    const idDocs = await ID.find({ uid });
+    const ids = [];
+    for (let i = 0; i < idDocs.length; i++) {
+      const id = idDocs[i];
+      ids.push({
+        ...id._doc,
+        url: await getIDUrl(id.fileName),
+      });
+    }
+    return res.json(ids);
   } catch (error) {
-    return res.status(500).json({msg: error.message})
+    return res.status(500).json({ msg: error.message });
   }
-})
+});
 
 module.exports = router;

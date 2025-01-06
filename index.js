@@ -12,6 +12,7 @@ const { User } = require('./models/User');
 const { uploadUsersImage } = require('./storage');
 const { extractFaceEmbeddings, authenticateUserImage } = require('./Auth');
 const router = require('./routes');
+const enrichUserProfile = require('./enrich-profile');
 require('dotenv').config();
 require('./llm-config');
 
@@ -67,7 +68,7 @@ onboardingSocket.on('connection', async socket => {
   const llmChat = new LLMChat();
   try {
     let locationData = socket.handshake?.query?.locationData;
-    if (locationData) locationData = JSON.parse(locationData)
+    if (locationData) locationData = JSON.parse(locationData);
     onboardingUserCache[machineId] = { locationData };
     const welcomeMessage = await llmChat.signalLLM(
       `start onboarding, and this is the location data of the user ${locationData?.fullAddress}`
@@ -139,6 +140,8 @@ async function interactWithLLm(msg, llmChat, socket) {
   socket.emit('tts', audioContent);
   socket.emit('ai', llmResponse?.response);
 
+
+  await handleCrawlData(llmResponse, socket, llmChat)
   await handleCapturePicture(llmResponse, socket);
   await handleEmailOtpVerify(llmResponse, socket, llmChat);
   await handleEmailVerify(llmResponse, socket, llmChat);
@@ -146,6 +149,17 @@ async function interactWithLLm(msg, llmChat, socket) {
   await handleOnboardingSessionEnd(llmResponse, socket);
   await handlePhoneVerify(llmResponse, socket, llmChat);
   await handlePhoneOtpVerify(llmResponse, socket, llmChat);
+}
+
+async function handleCrawlData(llmResponse, socket, llmChat) {
+  if (llmResponse.signal !== 'crawl_data') return;
+  const crawledData = await enrichUserProfile(llmResponse.collectedData);
+  await signalLLM(
+    `This is the stringified crawledData ${JSON.stringify(crawledData)}
+  If it is null or empty, skip and continue, else confirm the data with the user and only save it if user agrees, try convincing if they don't but don't compell`,
+    socket,
+    llmChat
+  );
 }
 
 async function handleCapturePicture(llmResponse, socket) {

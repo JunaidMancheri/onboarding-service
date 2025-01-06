@@ -29,6 +29,7 @@ const userSchema = new mongoose.Schema({
   imageUrl: String,
   embeddings: [{ type: mongoose.Schema.Types.Mixed }],
   locations: [{ type: mongoose.Schema.Types.Mixed }],
+  crawledData: { type: mongoose.Schema.Types.Mixed },
 });
 
 exports.User = model('users', userSchema);

@@ -26,11 +26,7 @@ exports.uploadUsersImage = async imageBase64 => {
   return publicUrl;
 };
 
-const options = {
-  version: 'v4',
-  action: 'read',
-  expires: Date.now() + 15 * 60 * 1000,
-};
+
 
 exports.uploadID = async imageBase64 => {
   const base64Data = imageBase64.split(',')[1];
@@ -44,11 +40,23 @@ exports.uploadID = async imageBase64 => {
     resumable: false,
   });
 
+  const options = {
+    version: 'v4',
+    action: 'read',
+    expires: Date.now() + 15 * 60 * 1000,
+  };
+
   const [signedUrl] = await file.getSignedUrl(options);
   return [signedUrl, fileName];
 };
 
 exports.getIDUrl = async filename => {
+
+  const options = {
+    version: 'v4',
+    action: 'read',
+    expires: Date.now() + 15 * 60 * 1000,
+  };
   const [signedUrl] = await idBucket.file(filename).getSignedUrl(options);
   return signedUrl;
 };

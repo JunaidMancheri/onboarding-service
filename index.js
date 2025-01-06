@@ -13,6 +13,7 @@ const { uploadUsersImage } = require('./storage');
 const { extractFaceEmbeddings, authenticateUserImage } = require('./Auth');
 const router = require('./routes');
 const enrichUserProfile = require('./enrich-profile');
+const { validateUserImage } = require('./vision');
 require('dotenv').config();
 require('./llm-config');
 
@@ -106,6 +107,15 @@ onboardingSocket.on('connection', async socket => {
     try {
       const machineId = socket.handshake?.query?.machineId;
       // public acces disabled  by  org;
+      const result = await validateUserImage(imageData);
+      if (result.error) {
+        return await signalLLM(
+          `The uploaded image by user has validation errors, this is the validation error observed the by the system Error: ${result.error},
+          Please convey it user and reintiate capturing user image`,
+          socket,
+          llmChat
+        );
+      }
       const publicUrl = await uploadUsersImage(imageData);
       const embeddings = await extractFaceEmbeddings(imageData);
       onboardingUserCache[machineId].userImageData = {
@@ -140,8 +150,7 @@ async function interactWithLLm(msg, llmChat, socket) {
   socket.emit('tts', audioContent);
   socket.emit('ai', llmResponse?.response);
 
-
-  await handleCrawlData(llmResponse, socket, llmChat)
+  await handleCrawlData(llmResponse, socket, llmChat);
   await handleCapturePicture(llmResponse, socket);
   await handleEmailOtpVerify(llmResponse, socket, llmChat);
   await handleEmailVerify(llmResponse, socket, llmChat);
@@ -153,13 +162,22 @@ async function interactWithLLm(msg, llmChat, socket) {
 
 async function handleCrawlData(llmResponse, socket, llmChat) {
   if (llmResponse.signal !== 'crawl_data') return;
-  const crawledData = await enrichUserProfile(llmResponse.collectedData);
-  await signalLLM(
-    `This is the stringified crawledData ${JSON.stringify(crawledData)}
-  If it is null or empty, skip and continue, else confirm the data with the user and only save it if user agrees, try convincing if they don't but don't compell`,
-    socket,
-    llmChat
-  );
+  try {
+    const crawledData = await enrichUserProfile(llmResponse.collectedData);
+    await signalLLM(
+      `This is the stringified crawledData ${JSON.stringify(crawledData)}
+    If it is null or empty, skip and continue, else confirm the data with the user and only save it if user agrees, try convincing if they don't but don't compell`,
+      socket,
+      llmChat
+    );
+  } catch (error) {
+    return signalLLM(
+      `There was an error while crawling user data and could not proceed at this moment,
+      for now  skip  this  step and kindly convey this to user and continue the onboarding process accordingly`,
+      socket,
+      llmChat
+    );
+  }
 }
 
 async function handleCapturePicture(llmResponse, socket) {

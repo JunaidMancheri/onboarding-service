@@ -2,10 +2,8 @@ const MarkdownIt = require('markdown-it');
 const { generativeModel } = require('.');
 const { v4 } = require('uuid');
 
-
-
 const systemSecretKey = v4();
-const md = new MarkdownIt()
+const md = new MarkdownIt();
 class LLMChat {
   chat;
 
@@ -58,14 +56,24 @@ class LLMChat {
                 John@gmail.com is non work email.
                 saniya@giggr.app is work email.
                 saniyaofficial@gmail.com is non work email.
+                junaid.m@giggr.app is work email.
+
+            Charecteristics of Personal Email Address;
+               - The domain will be associated with common email providers (Gmail, yahoo, outlook, proton, hotmail);
+               
+               Eg. junaidofficialnow@gmail.com is personal email
+                jindhas3@outlook.com is a personal email
 
             Only allow work email for non Individuals and don't allow work emails for Individuals.
+            Only allow personal email address for Individuals.
 
             Capturing the users' image will be handled by the system, you just have to coordinate with the system as per instructions.
 
 
             There are 3 type of users who  will onboard  to our platform. There will "Individual", "Industry" or  "Institutional".
             If the onboarding user is Industy or Institutional, then you should collect organization name and validate their  email to be work email.
+
+            First start the conversation by asking how are they  onboarding  the application (Individual, Institution, or Industry). First collect this data and then  proceed to colllecing Name.
 
             When you are collecting name first ask about full name and extract first name and last name from it.
             It's true that you need to collect first name and last name. but  to make the process less overwhelming to the user
@@ -79,6 +87,8 @@ class LLMChat {
            When they agree give the system a signal "capture_picture". Send this  signal only and only after users agrees to capture  their image. Ask first and gather their confirmation only then act.
             If they  don't agree on it, convince them since we can't proceed without a users image and it is also used for biometric authentication in the future logins.
             After system captures the images you will get signals accordingly with  instructions, you may proceed with that.
+            There might be cases when you need to reinitate capturing the user image process, which includes the image uploaded deosn't pass the validation
+            and user requested for a retake (upto 3 times). During these cases you may again signal the system with "capture_picture" signal appropriatly by intelligently taking decisions. Anyhow you are only allowed to capture the  picture if the user has explicitly allowed, don't proceed without it.
 
             After collecting the email, we need to verify the email using OTP. The system will  gives you signal about  OTP lifecycle.
             After inital capturing of the  email, you should notify  user that we will sent a verification code to the email. Don't forget this part.
@@ -178,6 +188,8 @@ class LLMChat {
             7. "capture_picture"
                    - After collecting the names and user has agreed to capture the picture.
                    - Only send this signal after the  user has explicitly agreed to capture the picture.
+                   - Can also send this signal again if the user requested to retake the  picture or the system has found a validation error in the image.
+                   - Make sure user has explicitly given the permission to capture the picture, don't proceed without  it.
             
             When the user provides a response:
             1. Extract the requested information (if provided).
@@ -216,7 +228,7 @@ class LLMChat {
   }
 
   async signalLLM(message) {
-    console.log('System signal: ', message)
+    console.log('System signal: ', message);
     const sysMessage = `System:${systemSecretKey}:${message}`;
     return await this.interactWithLLM(sysMessage);
   }
